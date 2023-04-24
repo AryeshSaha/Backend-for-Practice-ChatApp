@@ -20,3 +20,7 @@ MERN Stack Practice ChatApp made with socket.io
 -> jsonwebtoken
 -> mongoose
 -> socket.io
+
+# Tasks
+
+-> Implement Multimedia messages
