@@ -100,4 +100,6 @@ io.on("connection", (socket) => {
     console.log("====================================");
     socket.leave(user._id);
   });
+
+  socket.on("disconnect", () => console.log("User is disconnected"));
 });
