@@ -8,6 +8,8 @@ const UserRoute = require("./routes/UserRoutes");
 const ChatRoute = require("./routes/ChatRoutes");
 const MessageRoute = require("./routes/MessageRoutes");
 const Server = require("socket.io");
+const expressAsyncHandler = require("express-async-handler");
+const User = require("./models/UserModel");
 
 require("dotenv").config();
 
@@ -46,27 +48,49 @@ const io = Server(server, {
 
 let c = 0;
 io.on("connection", (socket) => {
-  console.log("====================================");
-  console.log(`Connected to ${socket.id}`, (c = c + 1));
-  console.log("====================================");
+  // console.log("====================================");
+  // console.log("Connected to socket", (c = c + 1));
+  // console.log("====================================");
+  // for keeping track of users status
+  const onlineUsers = [];
 
-  // This socket is trying to create/join a new room with the socket id assigned to the user whose data is getting passed from the client side. Why? So that anyone that wants to communicate with this user privately, can join this room
-  socket.on("setup", (user) => {
-    // created/joined the user's own room
-    socket.join(user._id);
-    console.log("====================================");
-    console.log(`${user.name}'s room id: ${user._id}`);
-    console.log("====================================");
-    socket.emit("connected");
-  });
+  // This socket is trying to create/join a new room with the socket id assigned to the user whose data is getting passed from the client side.
+  socket.on(
+    "setup",
+    expressAsyncHandler(async (user) => {
+      // created/joined the user's own room
+      socket.join(user._id);
+
+      // setting user online
+      const userId = user._id;
+      const validId = await User.findById(userId);
+
+      if (!validId) throw error("User doesn't exist");
+      try {
+        await User.findByIdAndUpdate(
+          userId,
+          {
+            isOnline: true,
+          },
+          {
+            new: true,
+            timestamps: true,
+          }
+        );
+      } catch (error) {
+        // console.error("Error updating user model", error);
+        throw new Error(error)
+      }
+
+      onlineUsers.push({ userId: user._id, socketId: socket.id });
+      io.emit("connected", { userId, isOnline: true });
+    })
+  );
 
   // This socket is trying to join a room to start comms with the users in that particular room or only with the room owner privately.
-  socket.on("join room", (room, user) => {
+  socket.on("join room", (room) => {
     // the room here is basically the chat id of the selected user or the group chat id
     socket.join(room._id);
-    console.log("====================================");
-    console.log(`${user.name} joined room of: ${room._id}`);
-    console.log("====================================");
   });
 
   // These two sockets is to check whether anyone is typing or not
@@ -81,9 +105,8 @@ io.on("connection", (socket) => {
   socket.on("sendMsg", (newMsg) => {
     let { chat } = newMsg;
 
-    if (!chat.users) return console.log("Chat users undefined!");
+    if (!chat.users) throw error("Chat users undefined!");
     chat.users.forEach((u) => {
-      console.log(`Name: ${u.name} and isGroup? ${newMsg.chat.isGroupChat}`);
       if (u._id === newMsg.sender._id) return;
 
       if (newMsg.chat.isGroupChat) {
@@ -94,12 +117,37 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.off("setup", () => {
-    console.log("====================================");
-    console.log(`${user.name} is disconnected`);
-    console.log("====================================");
-    socket.leave(user._id);
-  });
+  socket.on(
+    "disconnect",
+    expressAsyncHandler(async () => {
+      // console.log("User is disconnected");
+      const offlineUser = onlineUsers.find(
+        (user) => user.socketId === socket.id
+      );
+      if (offlineUser) {
+        const { userId } = offlineUser;
+        // setting user offline
+        const validId = await User.findById(userId);
 
-  socket.on("disconnect", () => console.log("User is disconnected"));
+        if (!validId) throw error("User doesn't exist");
+        try {
+          await User.findByIdAndUpdate(
+            userId,
+            {
+              isOnline: false,
+            },
+            {
+              new: true,
+              timestamps: true,
+            }
+          );
+        } catch (error) {
+          // console.error("Error updating user model", error);
+          throw new Error(error)
+        }
+        onlineUsers.splice(onlineUsers.indexOf(offlineUser), 1);
+        io.emit("disconnected", { userId, isOnline: false });
+      }
+    })
+  );
 });

@@ -20,12 +20,14 @@ const RegisterUser = expressAsyncHandler(async (req, res) => {
       email,
       password,
       profilePic,
+      isOnline: true,
     });
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       profilePic: user.profilePic,
+      isOnline: user.isOnline,
       token: genToken(user.id),
     });
   } catch (error) {

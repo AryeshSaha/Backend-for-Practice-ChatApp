@@ -15,12 +15,19 @@ const LoginUser = expressAsyncHandler(async (req, res) => {
   if (!userExists) throw new Error("User Doesn't Exist!");
 
   if (await userExists.CheckPassword(password)) {
+    const user = await User.findByIdAndUpdate(userExists._id,{
+      isOnline: true,
+    },{
+      new: true,
+      timestamps: true,
+    })
     res.json({
-      _id: userExists._id,
-      name: userExists.name,
-      email: userExists.email,
-      profilePic: userExists.profilePic,
-      token: genToken(userExists.id),
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      profilePic: user.profilePic,
+      isOnline: user.isOnline,
+      token: genToken(user.id),
     });
   } else {
     res.status(404);

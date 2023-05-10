@@ -21,6 +21,10 @@ const UserModel = mongoose.Schema(
       default:
         "https://www.nicepng.com/png/detail/73-730154_open-default-profile-picture-png.png",
     },
+    isOnline: {
+      type: Boolean,
+      default: false,
+    }
   },
   {
     timestamps: true,
