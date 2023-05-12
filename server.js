@@ -87,8 +87,8 @@ io.on("connection", (socket) => {
         onlineUsers.push({ userId, socketId: socket.id });
       }
 
-      io.emit("connected", { userId, isOnline: true, onlineUsers });
-      console.log(onlineUsers);
+      io.emit("connected", { isOnline: true, onlineUsers });
+      // console.log(onlineUsers);
     })
   );
 
@@ -149,8 +149,8 @@ io.on("connection", (socket) => {
           throw new Error(error);
         }
         onlineUsers.splice(onlineUsers.indexOf(offlineUser), 1);
-        console.log("User logged out");
-        io.emit("disconnected", { userId, isOnline: false, onlineUsers });
+        // console.log("User logged out");
+        io.emit("disconnected", { isOnline: false, onlineUsers });
       }
     })
   );
@@ -183,8 +183,8 @@ io.on("connection", (socket) => {
           throw new Error(error);
         }
         onlineUsers.splice(onlineUsers.indexOf(offlineUser), 1);
-        console.log("User is disconnected");
-        io.emit("disconnected", { userId, isOnline: false, onlineUsers });
+        // console.log("User is disconnected");
+        io.emit("disconnected", { isOnline: false, onlineUsers });
       }
     })
   );
