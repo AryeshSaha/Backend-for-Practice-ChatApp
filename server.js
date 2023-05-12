@@ -46,14 +46,10 @@ const io = Server(server, {
   },
 });
 
-let c = 0;
-io.on("connection", (socket) => {
-  // console.log("====================================");
-  // console.log("Connected to socket", (c = c + 1));
-  // console.log("====================================");
-  // for keeping track of users status
-  const onlineUsers = [];
+// for keeping track of users' stats
+const onlineUsers = [];
 
+io.on("connection", (socket) => {
   // This socket is trying to create/join a new room with the socket id assigned to the user whose data is getting passed from the client side.
   socket.on(
     "setup",
@@ -65,7 +61,7 @@ io.on("connection", (socket) => {
       const userId = user._id;
       const validId = await User.findById(userId);
 
-      if (!validId) throw error("User doesn't exist");
+      if (!validId) throw new Error("User doesn't exist");
       try {
         await User.findByIdAndUpdate(
           userId,
@@ -79,11 +75,20 @@ io.on("connection", (socket) => {
         );
       } catch (error) {
         // console.error("Error updating user model", error);
-        throw new Error(error)
+        throw new Error(error);
       }
 
-      onlineUsers.push({ userId: user._id, socketId: socket.id });
-      io.emit("connected", { userId, isOnline: true });
+      // if user is already online then don't add them again to the list
+      if (
+        !onlineUsers.find((u) => {
+          if (u.userId === userId) return true;
+        })
+      ) {
+        onlineUsers.push({ userId, socketId: socket.id });
+      }
+
+      io.emit("connected", { userId, isOnline: true, onlineUsers });
+      console.log(onlineUsers);
     })
   );
 
@@ -118,18 +123,16 @@ io.on("connection", (socket) => {
   });
 
   socket.on(
-    "disconnect",
-    expressAsyncHandler(async () => {
-      // console.log("User is disconnected");
-      const offlineUser = onlineUsers.find(
-        (user) => user.socketId === socket.id
-      );
+    "logout",
+    expressAsyncHandler(async (userId) => {
+      socket.leave(userId);
+      const offlineUser = onlineUsers.find((user) => user.userId === userId);
       if (offlineUser) {
         const { userId } = offlineUser;
         // setting user offline
         const validId = await User.findById(userId);
 
-        if (!validId) throw error("User doesn't exist");
+        if (!validId) throw new Error("User doesn't exist");
         try {
           await User.findByIdAndUpdate(
             userId,
@@ -143,10 +146,45 @@ io.on("connection", (socket) => {
           );
         } catch (error) {
           // console.error("Error updating user model", error);
-          throw new Error(error)
+          throw new Error(error);
         }
         onlineUsers.splice(onlineUsers.indexOf(offlineUser), 1);
-        io.emit("disconnected", { userId, isOnline: false });
+        console.log("User logged out");
+        io.emit("disconnected", { userId, isOnline: false, onlineUsers });
+      }
+    })
+  );
+
+  socket.on(
+    "disconnect",
+    expressAsyncHandler(async () => {
+      const offlineUser = onlineUsers.find(
+        (user) => user.socketId === socket.id
+      );
+      if (offlineUser) {
+        const { userId } = offlineUser;
+        // setting user offline
+        const validId = await User.findById(userId);
+
+        if (!validId) throw new Error("User doesn't exist");
+        try {
+          await User.findByIdAndUpdate(
+            userId,
+            {
+              isOnline: false,
+            },
+            {
+              new: true,
+              timestamps: true,
+            }
+          );
+        } catch (error) {
+          // console.error("Error updating user model", error);
+          throw new Error(error);
+        }
+        onlineUsers.splice(onlineUsers.indexOf(offlineUser), 1);
+        console.log("User is disconnected");
+        io.emit("disconnected", { userId, isOnline: false, onlineUsers });
       }
     })
   );
