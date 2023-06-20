@@ -138,6 +138,7 @@ io.on("connection", (socket) => {
             userId,
             {
               isOnline: false,
+              lastSeen: new Date(),
             },
             {
               new: true,
@@ -172,6 +173,7 @@ io.on("connection", (socket) => {
             userId,
             {
               isOnline: false,
+              lastSeen: new Date(),
             },
             {
               new: true,
